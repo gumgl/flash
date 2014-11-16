@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" applicationComplete="connect()">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[			
+			private var nc:NetConnection;
+			private var group:NetGroup;
+			
+			[Bindable]
+			private var userName:String;
+			
+			[Bindable]
+			private var connected:Boolean = false;
+			
+			private function connect():void{
+				nc = new NetConnection();
+				nc.addEventListener(NetStatusEvent.NET_STATUS, netStatus);
+				nc.connect("rtmfp:");
+				
+				userName = "user"+Math.round(Math.random()*1000);
+			}
+			
+			private function netStatus(event:NetStatusEvent):void{
+				writeText(event.info.code);
+				
+				switch(event.info.code){
+					case "NetConnection.Connect.Success":
+						setupGroup();
+						break;
+					
+					case "NetGroup.Connect.Success":
+						connected = true;
+						break;
+					
+					case "NetGroup.Posting.Notify":
+						receiveMessage(event.info.message)
+						break;
+				}
+			}
+			
+			private function setupGroup():void{
+				var groupspec:GroupSpecifier = new GroupSpecifier("myGroup/groupOne");
+				groupspec.postingEnabled = true;
+				groupspec.ipMulticastMemberUpdatesEnabled = true;
+				groupspec.addIPMulticastAddress("225.225.0.1:30303");
+
+				group = new NetGroup(nc,groupspec.groupspecWithAuthorizations());
+				group.addEventListener(NetStatusEvent.NET_STATUS,netStatus);
+			}
+			
+			private function sendMessage(txt:String):void{
+				var message:Object = new Object();
+				message.text = txt;
+				message.sender = group.convertPeerIDToGroupAddress(nc.nearID);
+				message.userName = txtUser.text;
+				
+				group.post(message);
+				
+				receiveMessage(message);
+			}
+			
+			public function receiveMessage(message:Object):void{
+				writeText(message.userName+": "+message.text);
+			}
+			
+			private function writeText(txt:String):void{
+				txtHistory.text += txt+"\n";
+			}
+			
+			protected function btnSend_clickHandler(event:MouseEvent):void
+			{
+				sendMessage( txtMessage.text );
+			}
+
+		]]>
+	</fx:Script>
+	<s:TextInput text="{userName}" x="10" bottom="10" id="txtUser"/>
+	<s:TextInput left="146" right="88" bottom="10" id="txtMessage" enter="btnSend_clickHandler(null)"/>
+	<s:TextArea left="10" right="10" top="75" bottom="40" id="txtHistory"/>
+	<s:Button enabled="{connected}" label="Send" bottom="10" right="10" click="btnSend_clickHandler(event)" id="btnSend"/>
+
+
+</s:Application>
